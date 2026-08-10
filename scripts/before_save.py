@@ -1,5 +1,5 @@
 # Server Script: Document Event / Before Save
-# Reference DocType: Company Vehicle Requisition
+# Reference DocType: Vehicle Requisition
 #
 # This is the authoritative validation. The SELECT ... FOR UPDATE serializes
 # attempts to reserve the same Vehicle within Frappe's request transaction.
@@ -27,15 +27,15 @@ privileged = bool(
     )
 )
 
-if not doc.requested_by and employee:
-    doc.requested_by = employee.name
-    doc.department = employee.department
-
 if not privileged:
     if not employee:
         frappe.throw("Your user account is not connected to an active Employee record.")
-    if doc.requested_by != employee.name:
-        frappe.throw("You may create a vehicle request only for yourself.")
+    # The server is authoritative. This also corrects stale or manually selected
+    # values instead of rejecting an otherwise valid self-service request.
+    doc.requested_by = employee.name
+    doc.department = employee.department
+elif not doc.requested_by and employee:
+    doc.requested_by = employee.name
     doc.department = employee.department
 
 if not doc.vehicle:
@@ -85,7 +85,7 @@ if new_state in blocking_states:
         frappe.throw("The selected vehicle is Out of Service.")
 
     if booking_status != "Available" and active_request != doc.name:
-        message = "Vehicle {0} is already booked".format(doc.vehicle)
+        message = "Vehicle " + doc.vehicle + " is already booked"
         if active_request:
             message = message + " under requisition " + active_request
         frappe.throw(message + ". Select another vehicle.")
@@ -93,7 +93,7 @@ if new_state in blocking_states:
     # A second authoritative check protects data repaired/imported without the
     # Vehicle custom fields being synchronized.
     conflict = frappe.db.get_value(
-        "Company Vehicle Requisition",
+        "Vehicle Requisition",
         {
             "vehicle": doc.vehicle,
             "workflow_state": ("in", blocking_states),
@@ -103,8 +103,9 @@ if new_state in blocking_states:
     )
     if conflict:
         frappe.throw(
-            "Vehicle {0} is already booked under requisition {1}. Select another vehicle."
-            .format(doc.vehicle, conflict)
+            "Vehicle " + doc.vehicle +
+            " is already booked under requisition " + conflict +
+            ". Select another vehicle."
         )
 
 # Return fields are enforced on the server, not only by the workflow condition.

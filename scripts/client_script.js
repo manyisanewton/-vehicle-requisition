@@ -1,7 +1,7 @@
 // Client Script
-// DocType: Company Vehicle Requisition
+// DocType: Vehicle Requisition
 
-frappe.ui.form.on('Company Vehicle Requisition', {
+frappe.ui.form.on('Vehicle Requisition', {
     setup(frm) {
         // The server still rechecks availability. This filter is only UX.
         frm.set_query('vehicle', () => ({

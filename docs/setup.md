@@ -20,7 +20,7 @@ Open **Customize Form > Vehicle** and add:
 | Label | Fieldname | Type | Options/default | Properties |
 |---|---|---|---|---|
 | Booking Status | `custom_booking_status` | Select | `Available\nBooked\nOut of Service` | Default `Available`, read-only, in list view |
-| Active Requisition | `custom_active_requisition` | Link | Company Vehicle Requisition | Read-only |
+| Active Requisition | `custom_active_requisition` | Link | Vehicle Requisition | Read-only |
 
 Set existing usable vehicles to `Available`. Set vehicles undergoing repair or
 otherwise unavailable to `Out of Service`. Never let Fleet Users edit these two
@@ -28,7 +28,7 @@ fields.
 
 ## 3. New DocType
 
-Create a new DocType named **Company Vehicle Requisition** in the module of your
+Create a new DocType named **Vehicle Requisition** in the module of your
 choice.
 
 Settings:
@@ -104,9 +104,9 @@ workflow still restricts the Cancel Booking action to Fleet Manager.
 
 ## 5. Workflow
 
-Create a Workflow named **Company Vehicle Requisition Workflow**:
+Create a Workflow named **Vehicle Requisition Workflow**:
 
-- Document Type: Company Vehicle Requisition
+- Document Type: Vehicle Requisition
 - Active: checked
 - Workflow State Field: `workflow_state`
 - Do not enable "Don't Override Status"
@@ -144,9 +144,9 @@ Create one Client Script and two Document Event Server Scripts:
 
 | File | Script record | Event |
 |---|---|---|
-| `scripts/client_script.js` | Client Script / Company Vehicle Requisition | Client form |
-| `scripts/before_save.py` | Server Script / Company Vehicle Requisition | Before Save |
-| `scripts/after_save.py` | Server Script / Company Vehicle Requisition | After Save |
+| `scripts/client_script.js` | Client Script / Vehicle Requisition | Client form |
+| `scripts/before_save.py` | Server Script / Vehicle Requisition | Before Save |
+| `scripts/after_save.py` | Server Script / Vehicle Requisition | After Save |
 
 Server Scripts are disabled by default on some Frappe v15 installations. They
 must be enabled by the bench administrator. Public shared Frappe Cloud benches
@@ -168,6 +168,17 @@ Use two different employee accounts and complete all tests before production:
 10. Cancellation with a reason releases an approved vehicle.
 11. A vehicle marked Out of Service cannot be reserved.
 12. A non-Fleet Manager cannot change the vehicle after reservation.
+
+## Troubleshooting identity errors
+
+Each ERPNext User who books a vehicle must have exactly one active Employee
+record whose **User ID** field contains that login email. The server always sets
+`requested_by` and `department` from that Employee record for ordinary users;
+it does not trust a manually selected employee.
+
+Because the old DocType was deleted and the fresh DocType was renamed, the
+expected route is `/vehicle-requisition/`. Attach these scripts only to the new
+**Vehicle Requisition** and keep the old scripts disabled or deleted.
 
 Back up the site before rollout. Disable the old Workflow and scripts only after
 these tests pass.

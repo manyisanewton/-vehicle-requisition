@@ -1,5 +1,5 @@
 # Server Script: Document Event / After Save
-# Reference DocType: Company Vehicle Requisition
+# Reference DocType: Vehicle Requisition
 
 blocking_states = ("Pending Approval", "Approved")
 release_states = ("Draft", "To Amend", "Returned", "Rejected", "Cancelled")
