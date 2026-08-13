@@ -48,8 +48,8 @@ to make the form usable.
 | Series | `naming_series` | Select | `CVR-.YYYY.-.#####` | Required, default first option |
 | Workflow State | `workflow_state` | Select | `Draft\nTo Amend\nPending Approval\nApproved\nReturned\nRejected\nCancelled` | Read-only, no copy |
 | Request Details | `request_details_section` | Section Break | | |
-| Requested By | `requested_by` | Link | Employee | Required, read-only |
-| Department | `department` | Link | Department | Read-only |
+| Requested By | `requested_by` | Link | User | Required, read-only; filled with logged-in User |
+| Department | `department` | Link | Department | Read-only; copied from the Employee connected through User ID |
 | Date Borrowed | `date_borrowed` | Datetime | | Required, default `Now` |
 | Request Column | `request_column` | Column Break | | |
 | Return By | `return_by` | Datetime | | Required |
@@ -66,7 +66,7 @@ to make the form usable.
 | Actual Odometer Before Travel | `actual_odometer_before_travel` | Float | | Allow on Submit |
 | Return Column | `return_column` | Column Break | | |
 | Actual Return Time | `actual_return_time` | Datetime | | Allow on Submit |
-| Odometer Value After Trip | `odometer_value_after_trip` | Float | | Allow on Submit |
+| Odometer Value After Trip | `odometer_value_after_trip` | Float | | Allow on Submit; made mandatory by Client Script during return and enforced by Server Script |
 | Mileage | `mileage` | Float | | Read-only, allow on submit |
 | Fuel Details | `fuel_section` | Section Break | | Collapsible |
 | Fuel Quantity | `fuel_quantity` | Float | | Allow on Submit |
@@ -171,10 +171,15 @@ Use two different employee accounts and complete all tests before production:
 
 ## Troubleshooting identity errors
 
-Each ERPNext User who books a vehicle must have exactly one active Employee
-record whose **User ID** field contains that login email. The server always sets
-`requested_by` and `department` from that Employee record for ordinary users;
-it does not trust a manually selected employee.
+`requested_by` stores the ERPNext **User**, not the Employee record. The server
+always sets it to the logged-in user for an ordinary requester. To fetch the
+department, that User should have exactly one active Employee record whose
+**User ID** contains the same login email.
+
+When changing an existing installation from Employee to User, change the
+`requested_by` Link Options to `User`. Existing rows containing Employee IDs
+(for example `HR-EMP-00010`) must be converted to their Employee `user_id`
+email or cleared before saving those records again.
 
 Because the old DocType was deleted and the fresh DocType was renamed, the
 expected route is `/vehicle-requisition/`. Attach these scripts only to the new

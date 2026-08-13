@@ -12,7 +12,7 @@ old_state = old_doc.workflow_state if old_doc else None
 old_vehicle = old_doc.vehicle if old_doc else None
 new_state = doc.workflow_state or "Draft"
 
-# Identity is derived on the server; a normal employee cannot impersonate another.
+# Requested By stores a User, while Department is derived through Employee.user_id.
 employee = frappe.db.get_value(
     "Employee",
     {"user_id": frappe.session.user, "status": "Active"},
@@ -28,15 +28,17 @@ privileged = bool(
 )
 
 if not privileged:
-    if not employee:
-        frappe.throw("Your user account is not connected to an active Employee record.")
-    # The server is authoritative. This also corrects stale or manually selected
-    # values instead of rejecting an otherwise valid self-service request.
-    doc.requested_by = employee.name
-    doc.department = employee.department
-elif not doc.requested_by and employee:
-    doc.requested_by = employee.name
-    doc.department = employee.department
+    # The server is authoritative: an ordinary requester cannot impersonate a
+    # different ERPNext User, even through an API request.
+    doc.requested_by = frappe.session.user
+    doc.department = employee.department if employee else None
+elif not doc.requested_by:
+    doc.requested_by = frappe.session.user
+    if employee:
+        doc.department = employee.department
+
+if not frappe.db.exists("User", doc.requested_by):
+    frappe.throw("Requested By must be a valid ERPNext User.")
 
 if not doc.vehicle:
     frappe.throw("Select a vehicle.")
@@ -65,7 +67,7 @@ if old_doc and old_state in blocking_states and old_vehicle != doc.vehicle:
 if new_state in blocking_states:
     rows = frappe.db.sql(
         """
-        SELECT name, custom_booking_status, custom_active_requisition
+        SELECT name, last_odometer, custom_booking_status, custom_active_requisition
         FROM `tabVehicle`
         WHERE name = %s
         FOR UPDATE
@@ -80,6 +82,12 @@ if new_state in blocking_states:
     vehicle_row = rows[0]
     active_request = vehicle_row.custom_active_requisition
     booking_status = vehicle_row.custom_booking_status or "Available"
+
+    # Store the master odometer as the trip's starting reference. Do not rely on
+    # the browser to supply this value.
+    doc.last_odometer_value = frappe.utils.flt(vehicle_row.last_odometer)
+    if doc.actual_odometer_before_travel is None:
+        doc.actual_odometer_before_travel = doc.last_odometer_value
 
     if booking_status == "Out of Service":
         frappe.throw("The selected vehicle is Out of Service.")
@@ -118,6 +126,11 @@ if new_state == "Returned":
         frappe.throw("Actual Odometer Before Travel is required.")
     if doc.odometer_value_after_trip is None:
         frappe.throw("Odometer Value After Trip is required.")
+
+    # Fetch the authoritative value again at return. The Vehicle remains booked
+    # by this requisition, so its last odometer should still be the dispatch value.
+    vehicle_last_value = frappe.db.get_value("Vehicle", doc.vehicle, "last_odometer")
+    doc.last_odometer_value = frappe.utils.flt(vehicle_last_value)
 
     before_value = frappe.utils.flt(doc.actual_odometer_before_travel)
     after_value = frappe.utils.flt(doc.odometer_value_after_trip)
